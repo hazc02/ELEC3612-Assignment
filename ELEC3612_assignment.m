@@ -200,7 +200,66 @@ for idx = 1:length(zigzag_order)
 end
 hold off;
 
+%% ==== RUN-LENGTH ENCODING FUNCTION ==== %%
+function [values, counts] = rle_encode(vector)
+    if isempty(vector)
+        values = [];
+        counts = [];
+        return;
+    end
+    values = vector(1); % Start with the first value
+    counts = 1; % Initialise count
+    for i = 2:length(vector)
+        if vector(i) == vector(i-1) % If current value equals previous
+            counts(end) = counts(end) + 1; % Increment count
+        else
+            values = [values, vector(i)]; % Add new value
+            counts = [counts, 1]; % Start new count
+        end
+    end
+end
+
 %% ==== STEP 6: Run-Length Encoding (RLE) ==== %%
+
+rle_values = cell(1, total_blocks); % Cell array for RLE values
+rle_counts = cell(1, total_blocks); % Cell array for RLE counts
+for k = 1:total_blocks
+    [values, counts] = rle_encode(scanned_vectors(k, :)); % Custom RLE function
+    rle_values{k} = values;
+    rle_counts{k} = counts;
+end
+
+% Display: Show the RLE output (values and counts) for the first block in a figure
+% Get the RLE output for the first block
+values = rle_values{1};
+counts = rle_counts{1};
+
+% Create a figure to display the RLE output as a text-based table
+figure('Name', 'Step 6: RLE Output of First Block', 'Position', [100, 100, 800, 200]);
+
+% Use a white background with no axes
+axis off;
+xlim([0 1]);
+ylim([0 1]);
+set(gca, 'Color', 'w');
+
+% Display the title
+text(0.5, 0.95, 'RLE Output of First 8x8 Block', ...
+     'HorizontalAlignment', 'center', 'FontSize', 12, 'FontWeight', 'bold');
+
+% Display column headers
+text(0.1, 0.8, 'Pair Index:', 'FontSize', 15, 'FontWeight', 'bold');
+text(0.5, 0.8, 'RLE Value:', 'FontSize', 15, 'FontWeight', 'bold');
+text(0.8, 0.8, 'Count:', 'FontSize', 15, 'FontWeight', 'bold');
+
+% Display each RLE pair (index, value, count) as a row in the table
+num_pairs = length(values);
+for i = 1:min(num_pairs, 10) % Limit to 10 pairs to fit in the figure; adjust as needed
+    y_position = 0.75 - (i-1) * 0.05; % Stack rows vertically
+    text(0.1, y_position, sprintf('%d', i), 'FontSize', 10);
+    text(0.5, y_position, sprintf('%.1f', values(i)), 'FontSize', 10);
+    text(0.8, y_position, sprintf('%d', counts(i)), 'FontSize', 10);
+end
 
 
 

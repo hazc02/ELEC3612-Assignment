@@ -261,6 +261,141 @@ for i = 1:min(num_pairs, 10) % Limit to 10 pairs to fit in the figure; adjust as
     text(0.8, y_position, sprintf('%d', counts(i)), 'FontSize', 10);
 end
 
+%% ==== STEP 7: Image Reconstruction ==== %%
+
+% Initialise array for reconstructed blocks
+reconstructed_blocks = zeros(size(blocks)); 
+
+% Dequantize and apply inverse DCT to each block
+for k = 1:total_blocks
+    dequantized_block = quantized_blocks(:,:,k) .* jpeg_quant_matrix; 
+    reconstructed_blocks(:,:,k) = idct2(dequantized_block); 
+end
+
+% Reassemble the image from blocks
+reconstructed_image = zeros(rows, cols);
+block_idx = 1;
+for i = 1:block_size:rows
+    for j = 1:block_size:cols
+        reconstructed_image(i:i+block_size-1, j:j+block_size-1) = reconstructed_blocks(:,:,block_idx);
+        block_idx = block_idx + 1;
+    end
+end
+
+% Convert original grayscale image to double for comparison
+gray_image_double = double(gray_image);
+
+% Calculate Mean Squared Error (MSE) and Peak Signal-to-Noise Ratio (PSNR)
+mse = mean((gray_image_double - reconstructed_image).^2, 'all');
+psnr_value = 10 * log10((255^2) / mse);
+
+% Clip values to [0, 255] and convert to uint8 for display
+reconstructed_image_uint8 = uint8(min(max(reconstructed_image, 0), 255));
+
+% Compute the difference image (absolute error) for visualization
+difference_image = abs(gray_image_double - reconstructed_image);
+difference_image_uint8 = uint8(difference_image * (255 / max(difference_image(:)))); % Scale for visibility
+
+% Improved Display: Show original, reconstructed, and difference images side by side
+figure('Name', 'Step 7: Image Reconstruction and Quality Analysis');
+
+% Subplot 1: Original grayscale image
+subplot(1, 3, 1);
+imshow(gray_image);
+title('Original Grayscale Image');
+
+% Subplot 2: Reconstructed image
+subplot(1, 3, 2);
+imshow(reconstructed_image_uint8);
+title('Reconstructed Image (Standard Quantization)');
+
+% Subplot 3: Difference image
+subplot(1, 3, 3);
+imshow(difference_image_uint8);
+title('Difference Image (Scaled Absolute Error)');
+
+% Add MSE and PSNR as text on the figure
+sgtitle(sprintf('Step 7: Image Reconstruction\nMSE: %.2f, PSNR: %.2f dB', mse, psnr_value));
+
+%% ==== STEP 7.5 Analysing Image Reconstruction at Regions-of Interest (ROIs) ==== %%
+
+% To be able to inspect the effects of JPEG compression, I have focussed in
+% on specifc 75x75 Regions-of-Interest (ROIs) on Lenna...
+
+% Define ROI parameters
+ROI_dim = 75; 
+
+ROI_coords = [
+    240, 250;  % ROI1
+    200, 200;  % ROI2
+    280, 280   % ROI3
+];
+
+num_ROIs = size(ROI_coords, 1);
+
+% Initialise arrays to store ROI slices
+ROI_images = cell(num_ROIs, 1); % Original images
+ROI_reconstructed = cell(num_ROIs, 1); % Reconstructed images
+ROI_difference = cell(num_ROIs, 1); % Difference images
+
+% Extract ROIs
+for i = 1:num_ROIs
+    row_start = ROI_coords(i, 1);
+    col_start = ROI_coords(i, 2);
+    row_end = row_start + (ROI_dim - 1);
+    col_end = col_start + (ROI_dim - 1);
+    
+    % Extract slices for each image type
+    ROI_images{i} = gray_image(row_start:row_end, col_start:col_end);
+    ROI_reconstructed{i} = reconstructed_image_uint8(row_start:row_end, col_start:col_end);
+    ROI_difference{i} = difference_image_uint8(row_start:row_end, col_start:col_end);
+end
+
+% Display ROIs in a 3x3 grid
+figure('Name', 'Step 7.5: ROI Analysis');
+
+% Row 1: ROI1 (Original, Reconstructed, Difference)
+subplot(3, 3, 1);
+imshow(ROI_images{1});
+title('ROI1: Original');
+
+subplot(3, 3, 2);
+imshow(ROI_reconstructed{1});
+title('ROI1: Reconstructed');
+
+subplot(3, 3, 3);
+imshow(ROI_difference{1});
+title('ROI1: Difference');
+
+% Row 2: ROI2 (Original, Reconstructed, Difference)
+subplot(3, 3, 4);
+imshow(ROI_images{2});
+title('ROI2: Original');
+
+subplot(3, 3, 5);
+imshow(ROI_reconstructed{2});
+title('ROI2: Reconstructed');
+
+subplot(3, 3, 6);
+imshow(ROI_difference{2});
+title('ROI2: Difference');
+
+% Row 3: ROI3 (Original, Reconstructed, Difference)
+subplot(3, 3, 7);
+imshow(ROI_images{3});
+title('ROI3: Original');
+
+subplot(3, 3, 8);
+imshow(ROI_reconstructed{3});
+title('ROI3: Reconstructed');
+
+subplot(3, 3, 9);
+imshow(ROI_difference{3});
+title('ROI3: Difference');
+
+% Adjust layout for better spacing
+sgtitle('Step 7.5: ROI Analysis (Original, Reconstructed, Difference)');
+
 
 
 

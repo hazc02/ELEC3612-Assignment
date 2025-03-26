@@ -78,3 +78,132 @@ ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
 grid on;
 
+%% ==== STEP 4: Quantization ==== %% 
+
+% Standard JPEG Luminance Quantization Matrix
+jpeg_quant_matrix = [
+    16 11 10 16 24 40 51 61;
+    12 12 14 19 26 58 60 55;
+    14 13 16 24 40 57 69 56;
+    14 17 22 29 51 87 80 62;
+    18 22 37 56 68 109 103 77;
+    24 35 55 64 81 104 113 92;
+    49 64 78 87 103 121 120 101;
+    72 92 95 98 112 100 103 99
+];
+
+% Initialise array for quantized coefficients
+quantized_blocks = zeros(size(dct_blocks)); 
+
+% Quantize each block
+for k = 1:total_blocks
+    quantized_blocks(:,:,k) = round(dct_blocks(:,:,k) ./ jpeg_quant_matrix); 
+end
+
+%% ==== ZIGZAG ORDER FUNCTION ==== %%
+
+function zigzag_order = generate_zigzag_order(block_size)
+    % Purpose: Generate the zig-zag scanning order for an NxN block.
+    % Input: block_size - Size of the block (e.g., 8 for an 8x8 block).
+    % Output: zigzag_order - Vector of indices (1 to N^2) in zig-zag order.
+    
+    N = block_size;
+    zigzag_order = zeros(1, N*N); % Initialise the order vector
+    idx = 1; % Current position in the order vector
+    row = 1; % Start at top-left
+    col = 1;
+    going_up = true; % Direction flag: true for up-right, false for down-left
+    
+    while idx <= N*N
+        % Add current position to the order
+        zigzag_order(idx) = (row-1)*N + col;
+        idx = idx + 1;
+        
+        if going_up
+            % Moving up-right
+            if col == N
+                row = row + 1; % Hit right edge, move down
+                going_up = false;
+            elseif row == 1
+                col = col + 1; % Hit top edge, move right
+                going_up = false;
+            else
+                row = row - 1; % Move up
+                col = col + 1; % Move right
+            end
+        else
+            % Moving down-left
+            if row == N
+                col = col + 1; % Hit bottom edge, move right
+                going_up = true;
+            elseif col == 1
+                row = row + 1; % Hit left edge, move down
+                going_up = true;
+            else
+                row = row + 1; % Move down
+                col = col - 1; % Move left
+            end
+        end
+    end
+end
+
+%% ==== STEP 5: ZIG-ZAG Scanning ==== %%
+
+% Generate zig-zag order using my own function
+zigzag_order = generate_zigzag_order(block_size); 
+
+% Initialise array for scanned vectors
+scanned_vectors = zeros(total_blocks, 64); 
+
+% Apply zig-zag scanning
+for k = 1:total_blocks
+    block = quantized_blocks(:,:,k);
+    scanned_vectors(k, :) = block(zigzag_order); 
+end
+
+% Show the zig-zag scanned vector of the first block as a heatmap
+% Reconstruct the 8x8 block with values in their original positions
+display_block = zeros(block_size);
+first_vector = scanned_vectors(1, :);
+
+for idx = 1:length(zigzag_order)
+    [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
+    display_block(row, col) = first_vector(idx);
+end
+
+% Create a heatmap with the zig-zag order overlaid
+figure('Name', 'Step 5: Zig-Zag Scanned Coefficients of First Block');
+
+imagesc(display_block); % Generate heatmap of the coefficients
+colormap parula; % Use the same colormap as Step 3 for consistency
+colorbar; % Show colour-to-value mapping
+
+title('Zig-Zag Scanned Coefficients of First 8x8 Block');
+xlabel('Column');
+ylabel('Row');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
+grid on;
+
+% Format to overlay the zig-zag order indices on each cell
+hold on;
+for idx = 1:length(zigzag_order)
+    [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
+
+    % Display the order index; adjust text colour for visibility
+    if abs(display_block(row, col)) < max(abs(display_block(:)))/2
+        text_color = 'k'; % Black text for light background
+    else
+        text_color = 'w'; % White text for dark background
+    end
+    text(col, row, sprintf('%d', idx), 'HorizontalAlignment', 'center', ...
+         'VerticalAlignment', 'middle', 'Color', text_color, 'FontSize', 8);
+end
+hold off;
+
+%% ==== STEP 6: Run-Length Encoding (RLE) ==== %%
+
+
+
+
+
+

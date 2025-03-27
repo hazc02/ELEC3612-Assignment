@@ -145,6 +145,46 @@ for k = 1:total_blocks
     quantized_blocks(:,:,k) = round(dct_blocks(:,:,k) ./ jpeg_quant_matrix); 
 end
 
+% Visualize the quantized coefficients for the first block
+
+% Select the first block
+selected_quantized_block = quantized_blocks(:,:,1);
+
+% Prepare the quantized coefficients for log-scaled display
+% Use absolute values and a small offset to handle zeros
+quant_display = abs(selected_quantized_block) + 1e-5;
+
+% Log-scale for better heat-map visibility
+log_quant = log10(quant_display); 
+
+% Display the log-scaled quantized coefficients as a heatmap with actual values overlaid
+figure('Name', 'Step 4: Quantized Coefficients with Actual Values');
+imagesc(log_quant); % Generate heatmap (log-scaled for shading)
+
+% Format Figure
+title('Log-Scaled Quantized Coefficients of First 8x8 Block with Actual Values');
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
+grid on;
+
+% Overlay the actual (non-log-scaled) quantized coefficient values
+hold on;
+for row = 1:8
+    for col = 1:8
+        % Get the actual quantized value
+        actual_value = selected_quantized_block(row, col);
+        
+        % Display the actual value, rounded to 1 decimal place
+        text(col, row, sprintf('%.1f', actual_value), ...
+             'HorizontalAlignment', 'center', ...
+             'VerticalAlignment', 'middle', ...
+             'Color', 'Black', ...
+             'FontSize', 8);
+    end
+end
+hold off;
+
 %% ==== ZIGZAG ORDER FUNCTION ==== %%
 
 function zigzag_order = generate_zigzag_order(block_size)

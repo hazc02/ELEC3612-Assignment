@@ -47,6 +47,27 @@ end
 % Convert cell array to a 3D array
 blocks = cat(3, blocks_cell{:});
 
+% Display the grayscale image with an 8x8 block grid overlay
+figure('Name', 'Step 2: 8x8 Blocks');
+imshow(gray_image);
+hold on;
+
+% Draw vertical grid lines every 8 pixels
+for x = block_size:block_size:cols
+    line([x, x], [1, rows], 'Color', 'r', 'LineWidth', 0.5);
+end
+
+% Draw horizontal grid lines every 8 pixels
+for y = block_size:block_size:rows
+    line([1, cols], [y, y], 'Color', 'r', 'LineWidth', 0.5);
+end
+
+% Add labels and title
+title('Grayscale Image with 8x8 Block Grid Overlay (JPEG Compression)');
+xlabel('Columns');
+ylabel('Rows');
+hold off;
+
 %% ==== STEP 3: Apply Discrete Cosine Transform (DCT) ==== %%
 
 % Initialise array for DCT coefficients and apply DCT to each
@@ -55,28 +76,41 @@ for k = 1:total_blocks
     dct_blocks(:,:,k) = dct2(blocks(:,:,k)); 
 end
 
-% Select block to visualisation (first block)
+% Select one block for visualisation (1st block)
 selected_dct_block = dct_blocks(:,:,1);
 
-% Prepare the DCT coefficients for log-scaled display
-
+% Prepare the DCT coefficients for log-scaled shading for better visibility
 % Use absolute values and a small offset to handle negatives and zeros
 dct_display = abs(selected_dct_block) + 1e-5;
-log_dct = log10(dct_display); % Log-scale for better visibility
+log_dct = log10(dct_display); %
 
-% Display the log-scaled DCT coefficients as a heatmap
-figure('Name', 'Step 3: DCT Coefficients (Log-Scaled)');
+% Display the log-scaled coefficients as a heatmap with actual values overlaid
+figure('Name', 'Step 3: DCT Coefficients with Actual Values');
 
-imagesc(log_dct);  % Generate heatmap
-colormap parula;   % Using 'parula' a clear, uniform colour gradient
-colorbar;          % Show colour-to-value mapping
+% Generate heatmap (log-scaled for shading)
+imagesc(log_dct); 
 
-% Enhanced clarity in figure 
-title('Log-Scaled DCT Coefficients of Selected 8x8 Block');
+title('DCT Coefficients of 1st 8x8 Block');
 xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
 grid on;
+
+% Overlay the DCT coefficient values
+hold on;
+for row = 1:8
+    for col = 1:8
+        % Get the actual DCT value
+        actual_value = selected_dct_block(row, col);
+        % Display the actual value, rounded to 1 decimal place
+        text(col, row, sprintf('%.1f', actual_value), ...
+             'HorizontalAlignment', 'center', ...
+             'VerticalAlignment', 'middle', ...
+             'Color', 'Black', ...
+             'FontSize', 8);
+    end
+end
+hold off;
 
 %% ==== STEP 4: Quantization ==== %% 
 
@@ -104,15 +138,20 @@ end
 
 function zigzag_order = generate_zigzag_order(block_size)
     % Purpose: Generate the zig-zag scanning order for an NxN block.
-    % Input: block_size - Size of the block (e.g., 8 for an 8x8 block).
-    % Output: zigzag_order - Vector of indices (1 to N^2) in zig-zag order.
+    % Input: block_size - Size of the block
+    % Output: zigzag_order - Vector of indices in zig-zag order.
     
     N = block_size;
-    zigzag_order = zeros(1, N*N); % Initialise the order vector
+
+    % Initialise the order vector
+    zigzag_order = zeros(1, N*N); 
+
     idx = 1; % Current position in the order vector
     row = 1; % Start at top-left
     col = 1;
-    going_up = true; % Direction flag: true for up-right, false for down-left
+    
+    % Direction flag: true for up-right, false for down-left
+    going_up = true; 
     
     while idx <= N*N
         % Add current position to the order
@@ -179,8 +218,6 @@ colormap parula; % Use the same colormap as Step 3 for consistency
 colorbar; % Show colour-to-value mapping
 
 title('Zig-Zag Scanned Coefficients of First 8x8 Block');
-xlabel('Column');
-ylabel('Row');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
 grid on;
 
@@ -188,48 +225,43 @@ grid on;
 hold on;
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
-
-    % Display the order index; adjust text colour for visibility
-    if abs(display_block(row, col)) < max(abs(display_block(:)))/2
-        text_color = 'k'; % Black text for light background
-    else
-        text_color = 'w'; % White text for dark background
-    end
     text(col, row, sprintf('%d', idx), 'HorizontalAlignment', 'center', ...
-         'VerticalAlignment', 'middle', 'Color', text_color, 'FontSize', 8);
+         'VerticalAlignment', 'middle', 'Color', 'Black', 'FontSize', 8);
 end
 hold off;
 
 %% ==== RUN-LENGTH ENCODING FUNCTION ==== %%
+
 function [values, counts] = rle_encode(vector)
-    if isempty(vector)
-        values = [];
-        counts = [];
-        return;
-    end
-    values = vector(1); % Start with the first value
-    counts = 1; % Initialise count
+
+    % Initalise values and count
+    values = vector(1); 
+    counts = 1; 
+
     for i = 2:length(vector)
-        if vector(i) == vector(i-1) % If current value equals previous
-            counts(end) = counts(end) + 1; % Increment count
-        else
-            values = [values, vector(i)]; % Add new value
-            counts = [counts, 1]; % Start new count
+        % If the current value is the same as the previous one, increment
+        if vector(i) == vector(i-1) 
+            counts(end) = counts(end) + 1; 
+        else        
+            values = [values, vector(i)];  
+            counts = [counts, 1]; 
         end
     end
 end
 
 %% ==== STEP 6: Run-Length Encoding (RLE) ==== %%
 
-rle_values = cell(1, total_blocks); % Cell array for RLE values
-rle_counts = cell(1, total_blocks); % Cell array for RLE counts
+% Array for RLE values and counts
+rle_values = cell(1, total_blocks);
+rle_counts = cell(1, total_blocks);
+
+% Encode each block
 for k = 1:total_blocks
-    [values, counts] = rle_encode(scanned_vectors(k, :)); % Custom RLE function
+    [values, counts] = rle_encode(scanned_vectors(k, :)); 
     rle_values{k} = values;
     rle_counts{k} = counts;
 end
 
-% Display: Show the RLE output (values and counts) for the first block in a figure
 % Get the RLE output for the first block
 values = rle_values{1};
 counts = rle_counts{1};
@@ -237,7 +269,7 @@ counts = rle_counts{1};
 % Create a figure to display the RLE output as a text-based table
 figure('Name', 'Step 6: RLE Output of First Block', 'Position', [100, 100, 800, 200]);
 
-% Use a white background with no axes
+% Format Table
 axis off;
 xlim([0 1]);
 ylim([0 1]);
@@ -254,8 +286,8 @@ text(0.8, 0.8, 'Count:', 'FontSize', 15, 'FontWeight', 'bold');
 
 % Display each RLE pair (index, value, count) as a row in the table
 num_pairs = length(values);
-for i = 1:min(num_pairs, 10) % Limit to 10 pairs to fit in the figure; adjust as needed
-    y_position = 0.75 - (i-1) * 0.05; % Stack rows vertically
+for i = 1:min(num_pairs, 10) 
+    y_position = 0.75 - (i-1) * 0.05; % To stack rows vertically
     text(0.1, y_position, sprintf('%d', i), 'FontSize', 10);
     text(0.5, y_position, sprintf('%.1f', values(i)), 'FontSize', 10);
     text(0.8, y_position, sprintf('%d', counts(i)), 'FontSize', 10);
@@ -294,9 +326,11 @@ reconstructed_image_uint8 = uint8(min(max(reconstructed_image, 0), 255));
 
 % Compute the difference image (absolute error) for visualization
 difference_image = abs(gray_image_double - reconstructed_image);
-difference_image_uint8 = uint8(difference_image * (255 / max(difference_image(:)))); % Scale for visibility
 
-% Improved Display: Show original, reconstructed, and difference images side by side
+% Scale for visibility
+difference_image_uint8 = uint8(difference_image * (255 / max(difference_image(:)))); 
+
+% Show original, reconstructed, and difference images side by side
 figure('Name', 'Step 7: Image Reconstruction and Quality Analysis');
 
 % Subplot 1: Original grayscale image

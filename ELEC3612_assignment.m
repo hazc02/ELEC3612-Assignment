@@ -34,20 +34,24 @@ num_blocks_row = rows / block_size;
 num_blocks_col = cols / block_size;
 total_blocks = num_blocks_col * num_blocks_row;
 
-% Array to temp store the blocks
+% Array to temporarily store the blocks
 blocks_cell = cell(1, total_blocks);
 block_idx = 1;
+
+% Extract the block and center it around 0 by subtracting 128
 for i = 1:block_size:rows
     for j = 1:block_size:cols
-        blocks_cell{block_idx} = gray_image(i:i+block_size-1, j:j+block_size-1);
+        block = double(gray_image(i:i+block_size-1, j:j+block_size-1)) - 128;
+        blocks_cell{block_idx} = block;
         block_idx = block_idx + 1;
     end
 end
 
 % Convert cell array to a 3D array
 blocks = cat(3, blocks_cell{:});
+ 
 
-% Display the grayscale image with an 8x8 block grid overlay
+% Figure to display the grayscale image with an 8x8 block grid overlay
 figure('Name', 'Step 2: 8x8 Blocks');
 imshow(gray_image);
 hold on;
@@ -70,8 +74,10 @@ hold off;
 
 %% ==== STEP 3: Apply Discrete Cosine Transform (DCT) ==== %%
 
-% Initialise array for DCT coefficients and apply DCT to each
+% Initialise array for DCT coefficients
 dct_blocks = zeros(size(blocks)); 
+
+% Apply DCT to each block
 for k = 1:total_blocks
     dct_blocks(:,:,k) = dct2(blocks(:,:,k)); 
 end
@@ -79,34 +85,39 @@ end
 % Select one block for visualisation (1st block)
 selected_dct_block = dct_blocks(:,:,1);
 
-% Prepare the DCT coefficients for log-scaled shading for better visibility
+% Prepare the DCT coefficients for log-scaled display
 % Use absolute values and a small offset to handle negatives and zeros
 dct_display = abs(selected_dct_block) + 1e-5;
-log_dct = log10(dct_display); %
+
+% Log-scale for better visibility with shading
+log_dct = log10(dct_display); 
 
 % Display the log-scaled coefficients as a heatmap with actual values overlaid
 figure('Name', 'Step 3: DCT Coefficients with Actual Values');
 
-% Generate heatmap (log-scaled for shading)
+% Generate heatmap
 imagesc(log_dct); 
 
-title('DCT Coefficients of 1st 8x8 Block');
+title('DCT Coefficients of 1st 8x8 Block (Centered Pixel Values)');
 xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
-set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
+
+% Add grid lines
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); 
 grid on;
 
-% Overlay the DCT coefficient values
+% Overlay the actual (non-log-scaled) DCT coefficient values
 hold on;
 for row = 1:8
     for col = 1:8
         % Get the actual DCT value
         actual_value = selected_dct_block(row, col);
+
         % Display the actual value, rounded to 1 decimal place
         text(col, row, sprintf('%.1f', actual_value), ...
              'HorizontalAlignment', 'center', ...
              'VerticalAlignment', 'middle', ...
-             'Color', 'Black', ...
+             'Color', 'black', ...
              'FontSize', 8);
     end
 end
@@ -214,8 +225,6 @@ end
 figure('Name', 'Step 5: Zig-Zag Scanned Coefficients of First Block');
 
 imagesc(display_block); % Generate heatmap of the coefficients
-colormap parula; % Use the same colormap as Step 3 for consistency
-colorbar; % Show colour-to-value mapping
 
 title('Zig-Zag Scanned Coefficients of First 8x8 Block');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
@@ -302,11 +311,15 @@ reconstructed_blocks = zeros(size(blocks));
 for k = 1:total_blocks
     dequantized_block = quantized_blocks(:,:,k) .* jpeg_quant_matrix; 
     reconstructed_blocks(:,:,k) = idct2(dequantized_block); 
+
+    % Shift the reconstructed block back by adding 128 to reverse the centering from Step 2
+    reconstructed_blocks(:,:,k) = reconstructed_blocks(:,:,k) + 128;
 end
 
 % Reassemble the image from blocks
 reconstructed_image = zeros(rows, cols);
 block_idx = 1;
+
 for i = 1:block_size:rows
     for j = 1:block_size:cols
         reconstructed_image(i:i+block_size-1, j:j+block_size-1) = reconstructed_blocks(:,:,block_idx);
@@ -429,9 +442,3 @@ title('ROI3: Difference');
 
 % Adjust layout for better spacing
 sgtitle('Step 7.5: ROI Analysis (Original, Reconstructed, Difference)');
-
-
-
-
-
-

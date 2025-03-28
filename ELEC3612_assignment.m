@@ -183,7 +183,7 @@ hold off;
 % a log-scaled version of the DCT coefficients for visualisation. A common 
 % colour scale is then determined across all channels for consistent comparison.
 
-selected_block = 100;
+selected_block = 250;
 
 % ----- Luminance Channel (Y) -----
 % Compute the DCT for each 8x8 block in the Y channel
@@ -443,34 +443,23 @@ for row = 1:8
 end
 hold off;
 
-
-
 %% ==== ZIGZAG ORDER FUNCTION ==== %%
-
 function zigzag_order = generate_zigzag_order(block_size)
-    % Purpose: Generate the zig-zag scanning order for an NxN block.
-    % Input: block_size - Size of the block
-    % Output: zigzag_order - Vector of indices in zig-zag order.
-    
+    % Generate the zig-zag scanning order for an NxN block.
+    % Input: block_size - the size of the block (e.g. 8)
+    % Output: zigzag_order - a vector of indices in zig-zag order
+
     N = block_size;
-
-    % Initialise the order vector
     zigzag_order = zeros(1, N*N); 
-
-    idx = 1; % Current position in the order vector
-    row = 1; % Start at top-left
+    idx = 1; % Current index in the order vector
+    row = 1; % Start at top-left corner
     col = 1;
-    
-    % Direction flag: true for up-right, false for down-left
-    going_up = true; 
+    going_up = true; % Direction flag: true for up-right, false for down-left
     
     while idx <= N*N
-        % Add current position to the order
         zigzag_order(idx) = (row-1)*N + col;
         idx = idx + 1;
-        
         if going_up
-            % Moving up-right
             if col == N
                 row = row + 1; % Hit right edge, move down
                 going_up = false;
@@ -478,11 +467,10 @@ function zigzag_order = generate_zigzag_order(block_size)
                 col = col + 1; % Hit top edge, move right
                 going_up = false;
             else
-                row = row - 1; % Move up
-                col = col + 1; % Move right
+                row = row - 1;
+                col = col + 1;
             end
         else
-            % Moving down-left
             if row == N
                 col = col + 1; % Hit bottom edge, move right
                 going_up = true;
@@ -490,116 +478,194 @@ function zigzag_order = generate_zigzag_order(block_size)
                 row = row + 1; % Hit left edge, move down
                 going_up = true;
             else
-                row = row + 1; % Move down
-                col = col - 1; % Move left
+                row = row + 1;
+                col = col - 1;
             end
         end
     end
 end
 
 %% ==== STEP 5: ZIG-ZAG Scanning ==== %%
+% Use the same 'selected_block' as in previous stages
+selected_block = 250;  % Ensure this is valid for all channels
 
-% Generate zig-zag order using my own function
-zigzag_order = generate_zigzag_order(block_size); 
+% Generate the zig-zag order (same for all channels)
+zigzag_order = generate_zigzag_order(block_size);
 
-% Initialise array for scanned vectors
-scanned_vectors = zeros(total_blocks, 64); 
-
-% Apply zig-zag scanning
-for k = 1:total_blocks
-    block = quantized_blocks(:,:,k);
-    scanned_vectors(k, :) = block(zigzag_order); 
+% --- Luminance (Y) ---
+scanned_vectors_Y = zeros(num_blocks_Y, block_size * block_size);
+for k = 1:num_blocks_Y
+    block = quantized_blocks_Y(:,:,k);
+    scanned_vectors_Y(k,:) = block(zigzag_order);
 end
-
-% Show the zig-zag scanned vector of the first block as a heatmap
-% Reconstruct the 8x8 block with values in their original positions
-display_block = zeros(block_size);
-first_vector = scanned_vectors(1, :);
-
+% Reconstruct the selected block from the scanned vector
+display_block_Y = zeros(block_size);
+selected_vector_Y = scanned_vectors_Y(selected_block,:);
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
-    display_block(row, col) = first_vector(idx);
+    display_block_Y(row, col) = selected_vector_Y(idx);
 end
+% Compute the log-scale version for display
+log_display_Y = log10(abs(display_block_Y) + 1e-5);
 
-% Create a heatmap with the zig-zag order overlaid
-figure('Name', 'Step 5: Zig-Zag Scanned Coefficients of First Block');
+% --- Chrominance (Cb) ---
+scanned_vectors_Cb = zeros(num_blocks_Cb, block_size * block_size);
+for k = 1:num_blocks_Cb
+    block = quantized_blocks_Cb(:,:,k);
+    scanned_vectors_Cb(k,:) = block(zigzag_order);
+end
+display_block_Cb = zeros(block_size);
+selected_vector_Cb = scanned_vectors_Cb(selected_block,:);
+for idx = 1:length(zigzag_order)
+    [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
+    display_block_Cb(row, col) = selected_vector_Cb(idx);
+end
+log_display_Cb = log10(abs(display_block_Cb) + 1e-5);
 
-imagesc(display_block); % Generate heatmap of the coefficients
+% --- Chrominance (Cr) ---
+scanned_vectors_Cr = zeros(num_blocks_Cr, block_size * block_size);
+for k = 1:num_blocks_Cr
+    block = quantized_blocks_Cr(:,:,k);
+    scanned_vectors_Cr(k,:) = block(zigzag_order);
+end
+display_block_Cr = zeros(block_size);
+selected_vector_Cr = scanned_vectors_Cr(selected_block,:);
+for idx = 1:length(zigzag_order)
+    [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
+    display_block_Cr(row, col) = selected_vector_Cr(idx);
+end
+log_display_Cr = log10(abs(display_block_Cr) + 1e-5);
 
-title('Zig-Zag Scanned Coefficients of First 8x8 Block');
-set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
-grid on;
+% ----- Visualise the Log-Scaled Zig-Zag Blocks with Global Colour Scale -----
+% Assumes global_min and global_max have been computed in Stage 4
+figure('Name', 'Step 5: Zig-Zag Scanned Coefficients (Log Scale)');
 
-% Format to overlay the zig-zag order indices on each cell
+% Luminance (Y) heatmap
+subplot(1,3,1);
+imagesc(log_display_Y);
+title(sprintf('Zig-Zag (Y), Block #%d', selected_block));
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on; axis square;
+caxis([global_min, global_max]);  % Apply common log-scale
 hold on;
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
     text(col, row, sprintf('%d', idx), 'HorizontalAlignment', 'center', ...
-         'VerticalAlignment', 'middle', 'Color', 'Black', 'FontSize', 8);
+         'VerticalAlignment', 'middle', 'Color', 'black', 'FontSize', 8);
+end
+hold off;
+
+% Chrominance (Cb) heatmap
+subplot(1,3,2);
+imagesc(log_display_Cb);
+title(sprintf('Zig-Zag (Cb), Block #%d', selected_block));
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on; axis square;
+caxis([global_min, global_max]);
+hold on;
+for idx = 1:length(zigzag_order)
+    [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
+    text(col, row, sprintf('%d', idx), 'HorizontalAlignment', 'center', ...
+         'VerticalAlignment', 'middle', 'Color', 'black', 'FontSize', 8);
+end
+hold off;
+
+% Chrominance (Cr) heatmap
+subplot(1,3,3);
+imagesc(log_display_Cr);
+title(sprintf('Zig-Zag (Cr), Block #%d', selected_block));
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on; axis square;
+caxis([global_min, global_max]);
+hold on;
+for idx = 1:length(zigzag_order)
+    [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
+    text(col, row, sprintf('%d', idx), 'HorizontalAlignment', 'center', ...
+         'VerticalAlignment', 'middle', 'Color', 'black', 'FontSize', 8);
 end
 hold off;
 
 %% ==== RUN-LENGTH ENCODING FUNCTION ==== %%
-
 function [values, counts] = rle_encode(vector)
-
-    % Initalise values and count
-    values = vector(1); 
-    counts = 1; 
-
+    % Perform run-length encoding on the input vector.
+    % Outputs:
+    %   values - the unique values in the run
+    %   counts - the count for each value in the run
+    values = vector(1);
+    counts = 1;
     for i = 2:length(vector)
-        % If the current value is the same as the previous one, increment
-        if vector(i) == vector(i-1) 
-            counts(end) = counts(end) + 1; 
+        if vector(i) == vector(i-1)
+            counts(end) = counts(end) + 1;
         else        
-            values = [values, vector(i)];  
-            counts = [counts, 1]; 
+            values = [values, vector(i)];
+            counts = [counts, 1];
         end
     end
 end
 
 %% ==== STEP 6: Run-Length Encoding (RLE) ==== %%
+% Use the same 'selected_block' so that the RLE output corresponds to 
+% the same block you have been displaying in Stages 3, 4, and 5.
 
-% Array for RLE values and counts
-rle_values = cell(1, total_blocks);
-rle_counts = cell(1, total_blocks);
+[values_Y, counts_Y] = rle_encode(scanned_vectors_Y(selected_block,:));
+[values_Cb, counts_Cb] = rle_encode(scanned_vectors_Cb(selected_block,:));
+[values_Cr, counts_Cr] = rle_encode(scanned_vectors_Cr(selected_block,:));
 
-% Encode each block
-for k = 1:total_blocks
-    [values, counts] = rle_encode(scanned_vectors(k, :)); 
-    rle_values{k} = values;
-    rle_counts{k} = counts;
+% Display the RLE output for the 'selected_block' of each channel
+figure('Name', 'Step 6: RLE Output of Selected Block', 'Position', [100, 100, 800, 600]);
+
+% Luminance (Y) RLE Output
+subplot(3,1,1);
+axis off;
+text(0.5, 0.95, sprintf('RLE Output for Luminance (Y) - Block #%d', selected_block), ...
+    'HorizontalAlignment', 'center', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.1, 0.8, 'Pair Index:', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.5, 0.8, 'RLE Value:', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.8, 0.8, 'Count:', 'FontSize', 12, 'FontWeight', 'bold');
+num_pairs = length(values_Y);
+for i = 1:num_pairs
+    y_position = 0.75 - (i-1)*0.05;
+    text(0.1, y_position, sprintf('%d', i), 'FontSize', 10);
+    text(0.5, y_position, sprintf('%.1f', values_Y(i)), 'FontSize', 10);
+    text(0.8, y_position, sprintf('%d', counts_Y(i)), 'FontSize', 10);
 end
 
-% Get the RLE output for the first block
-values = rle_values{1};
-counts = rle_counts{1};
-
-% Create a figure to display the RLE output as a text-based table
-figure('Name', 'Step 6: RLE Output of First Block', 'Position', [100, 100, 800, 200]);
-
-% Format Table
+% Chrominance (Cb) RLE Output
+subplot(3,1,2);
 axis off;
-xlim([0 1]);
-ylim([0 1]);
-set(gca, 'Color', 'w');
-
-% Display the title
-text(0.5, 0.95, 'RLE Output of First 8x8 Block', ...
-     'HorizontalAlignment', 'center', 'FontSize', 12, 'FontWeight', 'bold');
-
-% Display column headers
-text(0.1, 0.8, 'Pair Index:', 'FontSize', 15, 'FontWeight', 'bold');
-text(0.5, 0.8, 'RLE Value:', 'FontSize', 15, 'FontWeight', 'bold');
-text(0.8, 0.8, 'Count:', 'FontSize', 15, 'FontWeight', 'bold');
-
-% Display each RLE pair (index, value, count) as a row in the table
-num_pairs = length(values);
-for i = 1:min(num_pairs, 10) 
-    y_position = 0.75 - (i-1) * 0.05; % To stack rows vertically
+text(0.5, 0.95, sprintf('RLE Output for Chrominance (Cb) - Block #%d', selected_block), ...
+    'HorizontalAlignment', 'center', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.1, 0.8, 'Pair Index:', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.5, 0.8, 'RLE Value:', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.8, 0.8, 'Count:', 'FontSize', 12, 'FontWeight', 'bold');
+num_pairs = length(values_Cb);
+for i = 1:num_pairs
+    y_position = 0.75 - (i-1)*0.05;
     text(0.1, y_position, sprintf('%d', i), 'FontSize', 10);
-    text(0.5, y_position, sprintf('%.1f', values(i)), 'FontSize', 10);
-    text(0.8, y_position, sprintf('%d', counts(i)), 'FontSize', 10);
+    text(0.5, y_position, sprintf('%.1f', values_Cb(i)), 'FontSize', 10);
+    text(0.8, y_position, sprintf('%d', counts_Cb(i)), 'FontSize', 10);
+end
+
+% Chrominance (Cr) RLE Output
+subplot(3,1,3);
+axis off;
+text(0.5, 0.95, sprintf('RLE Output for Chrominance (Cr) - Block #%d', selected_block), ...
+    'HorizontalAlignment', 'center', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.1, 0.8, 'Pair Index:', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.5, 0.8, 'RLE Value:', 'FontSize', 12, 'FontWeight', 'bold');
+text(0.8, 0.8, 'Count:', 'FontSize', 12, 'FontWeight', 'bold');
+num_pairs = length(values_Cr);
+for i = 1:num_pairs
+    y_position = 0.75 - (i-1)*0.05;
+    text(0.1, y_position, sprintf('%d', i), 'FontSize', 10);
+    text(0.5, y_position, sprintf('%.1f', values_Cr(i)), 'FontSize', 10);
+    text(0.8, y_position, sprintf('%d', counts_Cr(i)), 'FontSize', 10);
 end
 
 %% ==== STEP 7: Image Reconstruction ==== %%

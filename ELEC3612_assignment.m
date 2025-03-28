@@ -179,13 +179,14 @@ hold off;
 
 
 %% ==== STEP 3: Apply Discrete Cosine Transform (DCT) ==== %%
-
-% Applying DCT to each channel separately, before calculating a log-scaled
-% version for a heatmap on the figure
+% Apply the 2D-DCT to each 8x8 block for each channel (Y, Cb, Cr) and compute 
+% a log-scaled version of the DCT coefficients for visualisation. A common 
+% colour scale is then determined across all channels for consistent comparison.
 
 selected_block = 100;
 
 % ----- Luminance Channel (Y) -----
+% Compute the DCT for each 8x8 block in the Y channel
 num_blocks_Y = size(blocks_Y, 3);
 dct_blocks_Y = zeros(size(blocks_Y));
 for k = 1:num_blocks_Y
@@ -193,11 +194,12 @@ for k = 1:num_blocks_Y
 end
 selected_dct_block_Y = dct_blocks_Y(:,:,selected_block);
 
-% Prepare the coefficients for log-scaled heatmap (avoiding log(0) issues)
+% Compute the absolute DCT coefficients and take log-scale (avoid log(0))
 dct_display_Y = abs(selected_dct_block_Y) + 1e-5;
 log_dct_Y = log10(dct_display_Y);
 
 % ----- Chrominance Channel (Cb) -----
+% Compute the DCT for each 8x8 block in the Cb channel
 num_blocks_Cb = size(blocks_Cb, 3);
 dct_blocks_Cb = zeros(size(blocks_Cb));
 for k = 1:num_blocks_Cb
@@ -205,11 +207,12 @@ for k = 1:num_blocks_Cb
 end
 selected_dct_block_Cb = dct_blocks_Cb(:,:,selected_block);
 
-% Prepare the coefficients for log-scaled heatmap (avoiding log(0) issues)
+% Compute the log-scaled DCT coefficients for Cb
 dct_display_Cb = abs(selected_dct_block_Cb) + 1e-5;
 log_dct_Cb = log10(dct_display_Cb);
 
 % ----- Chrominance Channel (Cr) -----
+% Compute the DCT for each 8x8 block in the Cr channel
 num_blocks_Cr = size(blocks_Cr, 3);
 dct_blocks_Cr = zeros(size(blocks_Cr));
 for k = 1:num_blocks_Cr
@@ -217,11 +220,16 @@ for k = 1:num_blocks_Cr
 end
 selected_dct_block_Cr = dct_blocks_Cr(:,:,selected_block);
 
-% Prepare the coefficients for log-scaled heatmap (avoiding log(0) issues)
+% Compute the log-scaled DCT coefficients for Cr
 dct_display_Cr = abs(selected_dct_block_Cr) + 1e-5;
 log_dct_Cr = log10(dct_display_Cr);
 
-% ----- Display the heatmaps for Y, Cb, and Cr -----
+% ----- Compute a Common Colour Scale -----
+% Determine global min and max from all three channels for a unified colour scale
+global_min = min([min(log_dct_Y(:)), min(log_dct_Cb(:)), min(log_dct_Cr(:))]);
+global_max = max([max(log_dct_Y(:)), max(log_dct_Cb(:)), max(log_dct_Cr(:))]);
+
+% ----- Visualise the Heatmaps for Each Channel -----
 figure('Name', 'Step 3: DCT Coefficients for Y, Cb, and Cr');
 
 % Luminance (Y) heatmap
@@ -230,13 +238,10 @@ imagesc(log_dct_Y);
 title('DCT Coefficients (Y)');
 xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
-
-% Overlay a grib to split into cells
-set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Set grid ticks
 grid on;
-
-axis square; 
-
+axis square;                       % Ensure square aspect ratio
+clim([global_min, global_max]);   % Apply common colour scale
 hold on;
 for row = 1:8
     for col = 1:8
@@ -255,8 +260,8 @@ xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on;
-axis square; 
-
+axis square;
+clim([global_min, global_max]);
 hold on;
 for row = 1:8
     for col = 1:8
@@ -275,9 +280,9 @@ xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on;
-axis square; 
+axis square;
+clim([global_min, global_max]);
 hold on;
-
 for row = 1:8
     for col = 1:8
         text(col, row, sprintf('%.1f', selected_dct_block_Cr(row, col)), ...
@@ -366,7 +371,7 @@ quant_display_Cr = abs(selected_quantized_block_Cr) + 1e-5;
 log_quant_Cr = log10(quant_display_Cr);
 
 % -------------------------------
-% Determine a common colour scale
+% Determine a common colour scale across all 3 channels
 % -------------------------------
 global_min = min([min(log_quant_Y(:)), min(log_quant_Cb(:)), min(log_quant_Cr(:))]);
 global_max = max([max(log_quant_Y(:)), max(log_quant_Cb(:)), max(log_quant_Cr(:))]);
@@ -387,6 +392,7 @@ grid on;
 axis square;
 clim([global_min, global_max]);  % Set common colour scale
 hold on;
+
 for row = 1:8
     for col = 1:8
         text(col, row, sprintf('%.1f', selected_quantized_block_Y(row, col)), ...
@@ -407,6 +413,7 @@ grid on;
 axis square;
 clim([global_min, global_max]);  % Set common colour scale
 hold on;
+
 for row = 1:8
     for col = 1:8
         text(col, row, sprintf('%.1f', selected_quantized_block_Cb(row, col)), ...

@@ -9,7 +9,7 @@ close all;
 %% ==== STEP 1: READ AND DISPLAY IMAGE ==== %%
 
 % Load Image and convert from RGB to YCbCr
-image = imread("lenna.png");
+image = imread("peppers.png");
 ycbcr_image = rgb2ycbcr(image);
 
 % Extract the Y, Cb and Cr channels
@@ -183,7 +183,7 @@ hold off;
 % Applying DCT to each channel separately, before calculating a log-scaled
 % version for a heatmap on the figure
 
-selected_block = 50;
+selected_block = 100;
 
 % ----- Luminance Channel (Y) -----
 num_blocks_Y = size(blocks_Y, 3);
@@ -193,7 +193,7 @@ for k = 1:num_blocks_Y
 end
 selected_dct_block_Y = dct_blocks_Y(:,:,selected_block);
 
-% Log Adjusted coefficients for use in heatmap scaling
+% Prepare the coefficients for log-scaled heatmap (avoiding log(0) issues)
 dct_display_Y = abs(selected_dct_block_Y) + 1e-5;
 log_dct_Y = log10(dct_display_Y);
 
@@ -205,7 +205,7 @@ for k = 1:num_blocks_Cb
 end
 selected_dct_block_Cb = dct_blocks_Cb(:,:,selected_block);
 
-% Log Adjusted coefficients for use in heatmap scaling
+% Prepare the coefficients for log-scaled heatmap (avoiding log(0) issues)
 dct_display_Cb = abs(selected_dct_block_Cb) + 1e-5;
 log_dct_Cb = log10(dct_display_Cb);
 
@@ -217,7 +217,7 @@ for k = 1:num_blocks_Cr
 end
 selected_dct_block_Cr = dct_blocks_Cr(:,:,selected_block);
 
-% Log Adjusted coefficients for use in heatmap scaling
+% Prepare the coefficients for log-scaled heatmap (avoiding log(0) issues)
 dct_display_Cr = abs(selected_dct_block_Cr) + 1e-5;
 log_dct_Cr = log10(dct_display_Cr);
 
@@ -289,68 +289,154 @@ hold off;
 
 
 
-%% ==== STEP 4: Quantization ==== %% 
+%% ==== STEP 4: Quantisation ==== %%
+% This stage applies quantisation to the DCT coefficients for the luminance and 
+% chrominance channels using different quantisation matrices, reflecting the 
+% differing perceptual sensitivities of the human eye.
 
-% Standard JPEG Luminance Quantization Matrix
-jpeg_quant_matrix = [
-    16 11 10 16 24 40 51 61;
-    12 12 14 19 26 58 60 55;
-    14 13 16 24 40 57 69 56;
-    14 17 22 29 51 87 80 62;
-    18 22 37 56 68 109 103 77;
-    24 35 55 64 81 104 113 92;
-    49 64 78 87 103 121 120 101;
-    72 92 95 98 112 100 103 99
-];
+% -------------------------------
+% Define Quantisation Matrices
+% -------------------------------
 
-% Initialise array for quantized coefficients
-quantized_blocks = zeros(size(dct_blocks)); 
+% Standard JPEG Luminance Quantisation Matrix (for Y)
+jpeg_quant_matrix_Y = [ ...
+    16 11 10 16 24 40 51 61; ...
+    12 12 14 19 26 58 60 55; ...
+    14 13 16 24 40 57 69 56; ...
+    14 17 22 29 51 87 80 62; ...
+    18 22 37 56 68 109 103 77; ...
+    24 35 55 64 81 104 113 92; ...
+    49 64 78 87 103 121 120 101; ...
+    72 92 95 98 112 100 103 99];
 
-% Quantize each block
-for k = 1:total_blocks
-    quantized_blocks(:,:,k) = round(dct_blocks(:,:,k) ./ jpeg_quant_matrix); 
+% Standard JPEG Chrominance Quantisation Matrix (for Cb and Cr)
+jpeg_quant_matrix_chroma = [ ...
+    17 18 24 47 99 99 99 99; ...
+    18 21 26 66 99 99 99 99; ...
+    24 26 56 99 99 99 99 99; ...
+    47 66 99 99 99 99 99 99; ...
+    99 99 99 99 99 99 99 99; ...
+    99 99 99 99 99 99 99 99; ...
+    99 99 99 99 99 99 99 99; ...
+    99 99 99 99 99 99 99 99];
+
+% -------------------------------
+% Quantisation for Luminance (Y)
+% -------------------------------
+num_blocks_Y = size(dct_blocks_Y, 3);
+quantized_blocks_Y = zeros(size(dct_blocks_Y));
+
+% Quantise each 8x8 block for Y
+for k = 1:num_blocks_Y
+    quantized_blocks_Y(:,:,k) = round(dct_blocks_Y(:,:,k) ./ jpeg_quant_matrix_Y);
 end
 
-% Visualize the quantized coefficients for the first block
+selected_quantized_block_Y = quantized_blocks_Y(:,:,selected_block);
+quant_display_Y = abs(selected_quantized_block_Y) + 1e-5;
+log_quant_Y = log10(quant_display_Y);
 
-% Select the first block
-selected_quantized_block = quantized_blocks(:,:,1);
+% -------------------------------
+% Quantisation for Chrominance (Cb)
+% -------------------------------
+num_blocks_Cb = size(dct_blocks_Cb, 3);
+quantized_blocks_Cb = zeros(size(dct_blocks_Cb));
 
-% Prepare the quantized coefficients for log-scaled display
-% Use absolute values and a small offset to handle zeros
-quant_display = abs(selected_quantized_block) + 1e-5;
+% Quantise each 8x8 block for Cb
+for k = 1:num_blocks_Cb
+    quantized_blocks_Cb(:,:,k) = round(dct_blocks_Cb(:,:,k) ./ jpeg_quant_matrix_chroma);
+end
 
-% Log-scale for better heat-map visibility
-log_quant = log10(quant_display); 
+selected_quantized_block_Cb = quantized_blocks_Cb(:,:,selected_block);
+quant_display_Cb = abs(selected_quantized_block_Cb) + 1e-5;
+log_quant_Cb = log10(quant_display_Cb);
 
-% Display the log-scaled quantized coefficients as a heatmap with actual values overlaid
-figure('Name', 'Step 4: Quantized Coefficients with Actual Values');
-imagesc(log_quant); % Generate heatmap (log-scaled for shading)
+% -------------------------------
+% Quantisation for Chrominance (Cr)
+% -------------------------------
+num_blocks_Cr = size(dct_blocks_Cr, 3);
+quantized_blocks_Cr = zeros(size(dct_blocks_Cr));
 
-% Format Figure
-title('Log-Scaled Quantized Coefficients of First 8x8 Block with Actual Values');
+% Quantise each 8x8 block for Cr
+for k = 1:num_blocks_Cr
+    quantized_blocks_Cr(:,:,k) = round(dct_blocks_Cr(:,:,k) ./ jpeg_quant_matrix_chroma);
+end
+
+selected_quantized_block_Cr = quantized_blocks_Cr(:,:,selected_block);
+quant_display_Cr = abs(selected_quantized_block_Cr) + 1e-5;
+log_quant_Cr = log10(quant_display_Cr);
+
+% -------------------------------
+% Determine a common colour scale
+% -------------------------------
+global_min = min([min(log_quant_Y(:)), min(log_quant_Cb(:)), min(log_quant_Cr(:))]);
+global_max = max([max(log_quant_Y(:)), max(log_quant_Cb(:)), max(log_quant_Cr(:))]);
+
+% -------------------------------
+% Visualisation: Display Heatmaps
+% -------------------------------
+figure('Name', 'Step 4: Quantised DCT Coefficients');
+
+% Luminance (Y) Heatmap
+subplot(1,3,1);
+imagesc(log_quant_Y);
+title('Quantised DCT Coefficients (Y)');
 xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
-set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on;
-
-
-% Overlay the actual (non-log-scaled) quantized coefficient values
+axis square;
+clim([global_min, global_max]);  % Set common colour scale
 hold on;
 for row = 1:8
     for col = 1:8
-        % Get the actual quantized value
-        actual_value = selected_quantized_block(row, col);
-        
-        % Display the actual value, rounded to 1 decimal place
-        text(col, row, sprintf('%.1f', actual_value), ...
-             'HorizontalAlignment', 'center', ...
-             'VerticalAlignment', 'middle', ...
-             'Color', 'Black', ...
-             'FontSize', 8);
+        text(col, row, sprintf('%.1f', selected_quantized_block_Y(row, col)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+            'Color', 'black', 'FontSize', 8);
     end
 end
 hold off;
+
+% Chrominance (Cb) Heatmap
+subplot(1,3,2);
+imagesc(log_quant_Cb);
+title('Quantised DCT Coefficients (Cb)');
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on;
+axis square;
+clim([global_min, global_max]);  % Set common colour scale
+hold on;
+for row = 1:8
+    for col = 1:8
+        text(col, row, sprintf('%.1f', selected_quantized_block_Cb(row, col)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+            'Color', 'black', 'FontSize', 8);
+    end
+end
+hold off;
+
+% Chrominance (Cr) Heatmap
+subplot(1,3,3);
+imagesc(log_quant_Cr);
+title('Quantised DCT Coefficients (Cr)');
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on;
+axis square;
+clim([global_min, global_max]);  % Set common colour scale
+hold on;
+for row = 1:8
+    for col = 1:8
+        text(col, row, sprintf('%.1f', selected_quantized_block_Cr(row, col)), ...
+            'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+            'Color', 'black', 'FontSize', 8);
+    end
+end
+hold off;
+
+
 
 %% ==== ZIGZAG ORDER FUNCTION ==== %%
 

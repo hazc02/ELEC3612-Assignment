@@ -8,120 +8,286 @@ close all;
 
 %% ==== STEP 1: READ AND DISPLAY IMAGE ==== %%
 
-% Load Image and convert to grayscale
+% Load Image and convert from RGB to YCbCr
 image = imread("lenna.png");
-gray_image = rgb2gray(image);
+ycbcr_image = rgb2ycbcr(image);
 
-% Display Original and Grayscale Images
+% Extract the Y, Cb and Cr channels
+Y = ycbcr_image(:,:,1);
+Cb = ycbcr_image(:,:,2);
+Cr = ycbcr_image(:,:,3);
+
+% Creating pseudo-colour representations for the chrominance channels.
+% to be able to represent them in a figure with the colours they represent
+
+% Use a constant luminance value (128) and neutral values (128) for the channel not being displayed.
+neutral = uint8(128 * ones(size(Y)));
+
+% For Cb: combine constant Y and neutral Cr
+Cb_img = ycbcr2rgb(cat(3, neutral, Cb, neutral));
+
+% For Cr: combine constant Y and neutral Cb
+Cr_img = ycbcr2rgb(cat(3, neutral, neutral, Cr));
+
+% Display Original RGB and then each YCbCr Channel in a 1x4 grid
 figure('Name', 'Step 1: Image Loading');
-
-subplot(1, 2, 1);
+subplot(1,4,1);
 imshow(image);
-title('Original RGB Image');
+title('Original RGB');
 
-subplot(1, 2, 2);
-imshow(gray_image);
-title('Grayscale Image');
+subplot(1,4,2);
+imshow(Y);
+title('Luminance (Y)');
 
-%% ==== STEP 2: Divide Image into 8x8 Blocks === %%
+subplot(1,4,3);
+imshow(Cb_img);
+title('Chrominance (Cb)');
 
-% Extract Image Dimensions (512 x 512) and Define Block Dimensions
-[rows, cols] = size(gray_image);
+subplot(1,4,4);
+imshow(Cr_img);
+title('Chrominance (Cr)');
+
+%% ==== STEP 2: Divide Channels into 8x8 Blocks ==== %%
 block_size = 8;
+%% Luminance Channel (Y)
 
-% Number of Blocks per row and column
-num_blocks_row = rows / block_size;
-num_blocks_col = cols / block_size;
-total_blocks = num_blocks_col * num_blocks_row;
+% Initalise arrays to store blocks
+[rowsY, colsY] = size(Y);
+num_blocks_Y = (rowsY / block_size) * (colsY / block_size);
+blocks_cell_Y = cell(1, num_blocks_Y);
 
-% Array to temporarily store the blocks
-blocks_cell = cell(1, total_blocks);
 block_idx = 1;
 
-% Extract the block and center it around 0 by subtracting 128
-for i = 1:block_size:rows
-    for j = 1:block_size:cols
-        block = double(gray_image(i:i+block_size-1, j:j+block_size-1)) - 128;
-        blocks_cell{block_idx} = block;
+% Divide Y into 8x8 blocks and centre each block by subtracting 128
+for i = 1:block_size:rowsY
+    for j = 1:block_size:colsY
+        block = double(Y(i:i+block_size-1, j:j+block_size-1)) - 128;
+        blocks_cell_Y{block_idx} = block;
         block_idx = block_idx + 1;
     end
 end
 
-% Convert cell array to a 3D array
-blocks = cat(3, blocks_cell{:});
- 
+% Stack blocks into a 3D array
+blocks_Y = cat(3, blocks_cell_Y{:});
 
-% Figure to display the grayscale image with an 8x8 block grid overlay
-figure('Name', 'Step 2: 8x8 Blocks');
-imshow(gray_image);
+%% Chrominance Channel (Cb)
+
+% Applying 4:2:0 chroma subsampling: reduce resolution by half
+Cb_sub = imresize(Cb, 0.5, 'bilinear');
+
+% Initalise arrays to store blocks
+[rowsC, colsC] = size(Cb_sub);
+num_blocks_C = (rowsC / block_size) * (colsC / block_size);
+blocks_cell_Cb = cell(1, num_blocks_C);
+
+% Resetting Block Index for this channel
+block_idx = 1;
+
+% Divide subsampled Cb into 8x8 blocks and centre by subtracting 128
+for i = 1:block_size:rowsC
+    for j = 1:block_size:colsC
+        block = double(Cb_sub(i:i+block_size-1, j:j+block_size-1)) - 128;
+        blocks_cell_Cb{block_idx} = block;
+        block_idx = block_idx + 1;
+    end
+end
+
+% Stack blocks into a 3D array
+blocks_Cb = cat(3, blocks_cell_Cb{:});
+
+%% Chrominance Channel (Cr)
+% Apply 4:2:0 chroma subsampling: reduce resolution by half
+Cr_sub = imresize(Cr, 0.5, 'bilinear');
+
+% Initalise arrays to store blocks
+[rowsCr, colsCr] = size(Cr_sub);
+num_blocks_Cr = (rowsCr / block_size) * (colsCr / block_size);
+blocks_cell_Cr = cell(1, num_blocks_Cr);
+
+% Resetting Block Index for this channel
+block_idx = 1;
+
+% Divide subsampled Cr into 8x8 blocks and centre by subtracting 128
+for i = 1:block_size:rowsCr
+    for j = 1:block_size:colsCr
+        block = double(Cr_sub(i:i+block_size-1, j:j+block_size-1)) - 128;
+        blocks_cell_Cr{block_idx} = block;
+        block_idx = block_idx + 1;
+    end
+end
+
+% Stack blocks into a 3D array
+blocks_Cr = cat(3, blocks_cell_Cr{:});
+
+%% Display Luminance (Y) and Chrominance (Cb_sub and Cr_sub) Side by Side
+figure('Name', 'Step 2: 8x8 Blocks for Y, Cb, and Cr');
+
+% Plot Y Channel
+subplot(1,3,1);
+imshow(Y);
 hold on;
 
-% Draw vertical grid lines every 8 pixels
-for x = block_size:block_size:cols
-    line([x, x], [1, rows], 'Color', 'r', 'LineWidth', 0.5);
+% Grid overlay to show 8x8 blocks for Y
+for x = block_size:block_size:colsY
+    line([x, x], [1, rowsY], 'Color', 'r', 'LineWidth', 0.5);
 end
 
-% Draw horizontal grid lines every 8 pixels
-for y = block_size:block_size:rows
-    line([1, cols], [y, y], 'Color', 'r', 'LineWidth', 0.5);
+for y = block_size:block_size:rowsY
+    line([1, colsY], [y, y], 'Color', 'r', 'LineWidth', 0.5);
 end
 
-% Add labels and title
-title('Grayscale Image with 8x8 Block Grid Overlay (JPEG Compression)');
-xlabel('Columns');
-ylabel('Rows');
+% Format Cr Figure
+title('Luminance (Y) with 8x8 Grid');
+xlabel('Columns'); ylabel('Rows');
 hold off;
+
+% Plot Cb Channel
+subplot(1,3,2);
+imshow(Cb_sub);
+hold on;
+
+% Grid overlay to show 8x8 blocks for Cb
+for x = block_size:block_size:colsC
+    line([x, x], [1, rowsC], 'Color', 'g', 'LineWidth', 0.5);
+end
+for y = block_size:block_size:rowsC
+    line([1, colsC], [y, y], 'Color', 'g', 'LineWidth', 0.5);
+end
+
+% Format Cr Figure
+title('Chrominance (Cb) with 8x8 Grid (Subsampled)');
+xlabel('Columns'); ylabel('Rows');
+hold off;
+
+% Plot Cr Channel
+subplot(1,3,3);
+imshow(Cr_sub);
+hold on;
+
+% Grid overlay to show 8x8 blocks for Cr
+for x = block_size:block_size:colsCr
+    line([x, x], [1, rowsCr], 'Color', 'b', 'LineWidth', 0.5);
+end
+for y = block_size:block_size:rowsCr
+    line([1, colsCr], [y, y], 'Color', 'b', 'LineWidth', 0.5);
+end
+
+% Format Cr Figure
+title('Chrominance (Cr) with 8x8 Grid (Subsampled)');
+xlabel('Columns'); ylabel('Rows');
+hold off;
+
 
 %% ==== STEP 3: Apply Discrete Cosine Transform (DCT) ==== %%
 
-% Initialise array for DCT coefficients
-dct_blocks = zeros(size(blocks)); 
+% Applying DCT to each channel separately, before calculating a log-scaled
+% version for a heatmap on the figure
 
-% Apply DCT to each block
-for k = 1:total_blocks
-    dct_blocks(:,:,k) = dct2(blocks(:,:,k)); 
+selected_block = 50;
+
+% ----- Luminance Channel (Y) -----
+num_blocks_Y = size(blocks_Y, 3);
+dct_blocks_Y = zeros(size(blocks_Y));
+for k = 1:num_blocks_Y
+    dct_blocks_Y(:,:,k) = dct2(blocks_Y(:,:,k));
 end
+selected_dct_block_Y = dct_blocks_Y(:,:,selected_block);
 
-% Select one block for visualisation (1st block)
-selected_dct_block = dct_blocks(:,:,1);
+% Log Adjusted coefficients for use in heatmap scaling
+dct_display_Y = abs(selected_dct_block_Y) + 1e-5;
+log_dct_Y = log10(dct_display_Y);
 
-% Prepare the DCT coefficients for log-scaled display
-% Use absolute values and a small offset to handle negatives and zeros
-dct_display = abs(selected_dct_block) + 1e-5;
+% ----- Chrominance Channel (Cb) -----
+num_blocks_Cb = size(blocks_Cb, 3);
+dct_blocks_Cb = zeros(size(blocks_Cb));
+for k = 1:num_blocks_Cb
+    dct_blocks_Cb(:,:,k) = dct2(blocks_Cb(:,:,k));
+end
+selected_dct_block_Cb = dct_blocks_Cb(:,:,selected_block);
 
-% Log-scale for better visibility with shading
-log_dct = log10(dct_display); 
+% Log Adjusted coefficients for use in heatmap scaling
+dct_display_Cb = abs(selected_dct_block_Cb) + 1e-5;
+log_dct_Cb = log10(dct_display_Cb);
 
-% Display the log-scaled coefficients as a heatmap with actual values overlaid
-figure('Name', 'Step 3: DCT Coefficients with Actual Values');
+% ----- Chrominance Channel (Cr) -----
+num_blocks_Cr = size(blocks_Cr, 3);
+dct_blocks_Cr = zeros(size(blocks_Cr));
+for k = 1:num_blocks_Cr
+    dct_blocks_Cr(:,:,k) = dct2(blocks_Cr(:,:,k));
+end
+selected_dct_block_Cr = dct_blocks_Cr(:,:,selected_block);
 
-% Generate heatmap
-imagesc(log_dct); 
+% Log Adjusted coefficients for use in heatmap scaling
+dct_display_Cr = abs(selected_dct_block_Cr) + 1e-5;
+log_dct_Cr = log10(dct_display_Cr);
 
-title('DCT Coefficients of 1st 8x8 Block (Centered Pixel Values)');
+% ----- Display the heatmaps for Y, Cb, and Cr -----
+figure('Name', 'Step 3: DCT Coefficients for Y, Cb, and Cr');
+
+% Luminance (Y) heatmap
+subplot(1,3,1);
+imagesc(log_dct_Y);
+title('DCT Coefficients (Y)');
 xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 
-% Add grid lines
-set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); 
+% Overlay a grib to split into cells
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on;
 
-% Overlay the actual (non-log-scaled) DCT coefficient values
+axis square; 
+
 hold on;
 for row = 1:8
     for col = 1:8
-        % Get the actual DCT value
-        actual_value = selected_dct_block(row, col);
-
-        % Display the actual value, rounded to 1 decimal place
-        text(col, row, sprintf('%.1f', actual_value), ...
-             'HorizontalAlignment', 'center', ...
-             'VerticalAlignment', 'middle', ...
-             'Color', 'black', ...
-             'FontSize', 8);
+        text(col, row, sprintf('%.1f', selected_dct_block_Y(row, col)), ...
+             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+             'Color', 'black', 'FontSize', 8);
     end
 end
 hold off;
+
+% Chrominance (Cb) heatmap
+subplot(1,3,2);
+imagesc(log_dct_Cb);
+title('DCT Coefficients (Cb)');
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on;
+axis square; 
+
+hold on;
+for row = 1:8
+    for col = 1:8
+        text(col, row, sprintf('%.1f', selected_dct_block_Cb(row, col)), ...
+             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+             'Color', 'black', 'FontSize', 8);
+    end
+end
+hold off;
+
+% Chrominance (Cr) heatmap
+subplot(1,3,3);
+imagesc(log_dct_Cr);
+title('DCT Coefficients (Cr)');
+xlabel('Horizontal Frequency');
+ylabel('Vertical Frequency');
+set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
+grid on;
+axis square; 
+hold on;
+
+for row = 1:8
+    for col = 1:8
+        text(col, row, sprintf('%.1f', selected_dct_block_Cr(row, col)), ...
+             'HorizontalAlignment', 'center', 'VerticalAlignment', 'middle', ...
+             'Color', 'black', 'FontSize', 8);
+    end
+end
+hold off;
+
+
 
 %% ==== STEP 4: Quantization ==== %% 
 
@@ -167,6 +333,7 @@ xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5); % Add grid lines
 grid on;
+
 
 % Overlay the actual (non-log-scaled) quantized coefficient values
 hold on;

@@ -8,17 +8,25 @@ close all;
 
 %% ==== STEP 1: READ AND DISPLAY IMAGE ==== %%
 
+% -----------------------------------------
 % Load Image and convert from RGB to YCbCr
+% -----------------------------------------
+
 image = imread("peppers.png");
 ycbcr_image = rgb2ycbcr(image);
 
+% ----------------------------
 % Extract the Y, Cb and Cr channels
+% ----------------------------
+
 Y = ycbcr_image(:,:,1);
 Cb = ycbcr_image(:,:,2);
 Cr = ycbcr_image(:,:,3);
 
+% -----------------------------------------------------------------------
 % Creating pseudo-colour representations for the chrominance channels.
 % to be able to represent them in a figure with the colours they represent
+% ------------------------------------------------------------------------
 
 % Use a constant luminance value (128) and neutral values (128) for the channel not being displayed.
 neutral = uint8(128 * ones(size(Y)));
@@ -29,7 +37,10 @@ Cb_img = ycbcr2rgb(cat(3, neutral, Cb, neutral));
 % For Cr: combine constant Y and neutral Cb
 Cr_img = ycbcr2rgb(cat(3, neutral, neutral, Cr));
 
+% --------------------------------------------------------------
 % Display Original RGB and then each YCbCr Channel in a 1x4 grid
+% --------------------------------------------------------------
+
 figure('Name', 'Step 1: Image Loading');
 subplot(1,4,1);
 imshow(image);
@@ -49,7 +60,10 @@ title('Chrominance (Cr)');
 
 %% ==== STEP 2: Divide Channels into 8x8 Blocks ==== %%
 block_size = 8;
-%% Luminance Channel (Y)
+
+% ----------------------------
+% Luminance Channel (Y)
+% ----------------------------
 
 % Initalise arrays to store blocks
 [rowsY, colsY] = size(Y);
@@ -70,7 +84,9 @@ end
 % Stack blocks into a 3D array
 blocks_Y = cat(3, blocks_cell_Y{:});
 
-%% Chrominance Channel (Cb)
+% ----------------------------
+% Chrominance Channel (Cb)
+% ----------------------------
 
 % Applying 4:2:0 chroma subsampling: reduce resolution by half
 Cb_sub = imresize(Cb, 0.5, 'bilinear');
@@ -95,7 +111,10 @@ end
 % Stack blocks into a 3D array
 blocks_Cb = cat(3, blocks_cell_Cb{:});
 
-%% Chrominance Channel (Cr)
+% ----------------------------
+% Chrominance Channel (Cr)
+% ----------------------------
+
 % Apply 4:2:0 chroma subsampling: reduce resolution by half
 Cr_sub = imresize(Cr, 0.5, 'bilinear');
 
@@ -119,7 +138,10 @@ end
 % Stack blocks into a 3D array
 blocks_Cr = cat(3, blocks_cell_Cr{:});
 
-%% Display Luminance (Y) and Chrominance (Cb_sub and Cr_sub) Side by Side
+% ----------------------------------------------------------------------
+% Display Luminance (Y) and Chrominance (Cb_sub and Cr_sub) Side by Side
+% ----------------------------------------------------------------------
+
 figure('Name', 'Step 2: 8x8 Blocks for Y, Cb, and Cr');
 
 % Plot Y Channel
@@ -185,7 +207,10 @@ hold off;
 
 selected_block = 250;
 
-% ----- Luminance Channel (Y) -----
+% ----------------------
+% Luminance Channel (Y)
+% ----------------------
+
 % Compute the DCT for each 8x8 block in the Y channel
 num_blocks_Y = size(blocks_Y, 3);
 dct_blocks_Y = zeros(size(blocks_Y));
@@ -198,7 +223,10 @@ selected_dct_block_Y = dct_blocks_Y(:,:,selected_block);
 dct_display_Y = abs(selected_dct_block_Y) + 1e-5;
 log_dct_Y = log10(dct_display_Y);
 
-% ----- Chrominance Channel (Cb) -----
+% -------------------------
+% Chrominance Channel (Cb)
+% -------------------------
+
 % Compute the DCT for each 8x8 block in the Cb channel
 num_blocks_Cb = size(blocks_Cb, 3);
 dct_blocks_Cb = zeros(size(blocks_Cb));
@@ -211,7 +239,10 @@ selected_dct_block_Cb = dct_blocks_Cb(:,:,selected_block);
 dct_display_Cb = abs(selected_dct_block_Cb) + 1e-5;
 log_dct_Cb = log10(dct_display_Cb);
 
-% ----- Chrominance Channel (Cr) -----
+% -------------------------
+% Chrominance Channel (Cr)
+% -------------------------
+
 % Compute the DCT for each 8x8 block in the Cr channel
 num_blocks_Cr = size(blocks_Cr, 3);
 dct_blocks_Cr = zeros(size(blocks_Cr));
@@ -224,12 +255,15 @@ selected_dct_block_Cr = dct_blocks_Cr(:,:,selected_block);
 dct_display_Cr = abs(selected_dct_block_Cr) + 1e-5;
 log_dct_Cr = log10(dct_display_Cr);
 
-% ----- Compute a Common Colour Scale -----
+% -----------------------------------------------
+% Compute a Common Colour Scale and Plot Figures
+% -----------------------------------------------
+
 % Determine global min and max from all three channels for a unified colour scale
 global_min = min([min(log_dct_Y(:)), min(log_dct_Cb(:)), min(log_dct_Cr(:))]);
 global_max = max([max(log_dct_Y(:)), max(log_dct_Cb(:)), max(log_dct_Cr(:))]);
 
-% ----- Visualise the Heatmaps for Each Channel -----
+% Visualise the Heatmaps for Each Channel 
 figure('Name', 'Step 3: DCT Coefficients for Y, Cb, and Cr');
 
 % Luminance (Y) heatmap
@@ -291,8 +325,6 @@ for row = 1:8
     end
 end
 hold off;
-
-
 
 %% ==== STEP 4: Quantisation ==== %%
 % This stage applies quantisation to the DCT coefficients for the luminance and 
@@ -370,9 +402,9 @@ selected_quantized_block_Cr = quantized_blocks_Cr(:,:,selected_block);
 quant_display_Cr = abs(selected_quantized_block_Cr) + 1e-5;
 log_quant_Cr = log10(quant_display_Cr);
 
-% -------------------------------
+% ------------------------------------------------------
 % Determine a common colour scale across all 3 channels
-% -------------------------------
+% ------------------------------------------------------
 global_min = min([min(log_quant_Y(:)), min(log_quant_Cb(:)), min(log_quant_Cr(:))]);
 global_max = max([max(log_quant_Y(:)), max(log_quant_Cb(:)), max(log_quant_Cr(:))]);
 
@@ -486,58 +518,88 @@ function zigzag_order = generate_zigzag_order(block_size)
 end
 
 %% ==== STEP 5: ZIG-ZAG Scanning ==== %%
-% Use the same 'selected_block' as in previous stages
-selected_block = 250;  % Ensure this is valid for all channels
+
+selected_block = 250;
 
 % Generate the zig-zag order (same for all channels)
 zigzag_order = generate_zigzag_order(block_size);
 
-% --- Luminance (Y) ---
+% --------------------
+% Luminance Channel(Y)
+% --------------------
+
+% Create an array to store scanned blocks
 scanned_vectors_Y = zeros(num_blocks_Y, block_size * block_size);
+
 for k = 1:num_blocks_Y
     block = quantized_blocks_Y(:,:,k);
     scanned_vectors_Y(k,:) = block(zigzag_order);
 end
+
 % Reconstruct the selected block from the scanned vector
 display_block_Y = zeros(block_size);
 selected_vector_Y = scanned_vectors_Y(selected_block,:);
+
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
     display_block_Y(row, col) = selected_vector_Y(idx);
 end
+
 % Compute the log-scale version for display
 log_display_Y = log10(abs(display_block_Y) + 1e-5);
 
-% --- Chrominance (Cb) ---
+% -------------------------
+% Chrominance (Cb) Channel
+% -------------------------
+
+% Create an array to store scanned blocks
 scanned_vectors_Cb = zeros(num_blocks_Cb, block_size * block_size);
+
 for k = 1:num_blocks_Cb
     block = quantized_blocks_Cb(:,:,k);
     scanned_vectors_Cb(k,:) = block(zigzag_order);
 end
+
+% Reconstruct the selected block from the scanned vector
 display_block_Cb = zeros(block_size);
 selected_vector_Cb = scanned_vectors_Cb(selected_block,:);
+
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
     display_block_Cb(row, col) = selected_vector_Cb(idx);
 end
+
+% Compute the log-scale version
 log_display_Cb = log10(abs(display_block_Cb) + 1e-5);
 
-% --- Chrominance (Cr) ---
+% -------------------------
+% Chrominance (Cr) Channel
+% -------------------------
+
+% Create an array to store scanned blocks
 scanned_vectors_Cr = zeros(num_blocks_Cr, block_size * block_size);
+
 for k = 1:num_blocks_Cr
     block = quantized_blocks_Cr(:,:,k);
     scanned_vectors_Cr(k,:) = block(zigzag_order);
 end
+
+% Reconstruct the selected block from the scanned vector
 display_block_Cr = zeros(block_size);
 selected_vector_Cr = scanned_vectors_Cr(selected_block,:);
+
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
     display_block_Cr(row, col) = selected_vector_Cr(idx);
 end
+
+% Compute the log-scale version
 log_display_Cr = log10(abs(display_block_Cr) + 1e-5);
 
-% ----- Visualise the Log-Scaled Zig-Zag Blocks with Global Colour Scale -----
-% Assumes global_min and global_max have been computed in Stage 4
+% ----------------------------------------------------------------
+% Visualise the Log-Scaled Zig-Zag Blocks with Global Colour Scale
+% ----------------------------------------------------------------
+
 figure('Name', 'Step 5: Zig-Zag Scanned Coefficients (Log Scale)');
 
 % Luminance (Y) heatmap
@@ -548,7 +610,7 @@ xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on; axis square;
-caxis([global_min, global_max]);  % Apply common log-scale
+clim([global_min, global_max]);  % Apply common log-scale
 hold on;
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
@@ -565,7 +627,7 @@ xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on; axis square;
-caxis([global_min, global_max]);
+clim([global_min, global_max]);
 hold on;
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
@@ -582,7 +644,7 @@ xlabel('Horizontal Frequency');
 ylabel('Vertical Frequency');
 set(gca, 'XTick', 0.5:1:8.5, 'YTick', 0.5:1:8.5);
 grid on; axis square;
-caxis([global_min, global_max]);
+clim([global_min, global_max]);
 hold on;
 for idx = 1:length(zigzag_order)
     [row, col] = ind2sub([block_size, block_size], zigzag_order(idx));
@@ -593,13 +655,21 @@ hold off;
 
 %% ==== RUN-LENGTH ENCODING FUNCTION ==== %%
 function [values, counts] = rle_encode(vector)
+
     % Perform run-length encoding on the input vector.
-    % Outputs:
+
+    %   Outputs:
     %   values - the unique values in the run
     %   counts - the count for each value in the run
+    
+    % Initalise values and count
     values = vector(1);
     counts = 1;
+    
+   
     for i = 2:length(vector)
+
+        % If the values is the same as previous, incriment count
         if vector(i) == vector(i-1)
             counts(end) = counts(end) + 1;
         else        
@@ -610,8 +680,6 @@ function [values, counts] = rle_encode(vector)
 end
 
 %% ==== STEP 6: Run-Length Encoding (RLE) ==== %%
-% Use the same 'selected_block' so that the RLE output corresponds to 
-% the same block you have been displaying in Stages 3, 4, and 5.
 
 [values_Y, counts_Y] = rle_encode(scanned_vectors_Y(selected_block,:));
 [values_Cb, counts_Cb] = rle_encode(scanned_vectors_Cb(selected_block,:));
@@ -620,7 +688,10 @@ end
 % Display the RLE output for the 'selected_block' of each channel
 figure('Name', 'Step 6: RLE Output of Selected Block', 'Position', [100, 100, 800, 600]);
 
+% ------------------------
 % Luminance (Y) RLE Output
+% ------------------------
+
 subplot(3,1,1);
 axis off;
 text(0.5, 0.95, sprintf('RLE Output for Luminance (Y) - Block #%d', selected_block), ...
@@ -636,7 +707,10 @@ for i = 1:num_pairs
     text(0.8, y_position, sprintf('%d', counts_Y(i)), 'FontSize', 10);
 end
 
+% ----------------------------
 % Chrominance (Cb) RLE Output
+% ----------------------------
+
 subplot(3,1,2);
 axis off;
 text(0.5, 0.95, sprintf('RLE Output for Chrominance (Cb) - Block #%d', selected_block), ...
@@ -652,7 +726,10 @@ for i = 1:num_pairs
     text(0.8, y_position, sprintf('%d', counts_Cb(i)), 'FontSize', 10);
 end
 
+% ---------------------------
 % Chrominance (Cr) RLE Output
+% ---------------------------
+
 subplot(3,1,3);
 axis off;
 text(0.5, 0.95, sprintf('RLE Output for Chrominance (Cr) - Block #%d', selected_block), ...
@@ -669,142 +746,233 @@ for i = 1:num_pairs
 end
 
 %% ==== STEP 7: Image Reconstruction ==== %%
+% Reconstruct the image from the quantised and DCT-processed blocks for each YCbCr channel.
+% The channels are then combined and converted back to RGB for visual comparison.
+% Quality metrics (MSE and PSNR) are calculated to assess reconstruction quality.
 
-% Initialise array for reconstructed blocks
-reconstructed_blocks = zeros(size(blocks)); 
+% ---------------------------------
+% Reconstruct Luminance (Y) Channel
+% ---------------------------------
 
-% Dequantize and apply inverse DCT to each block
-for k = 1:total_blocks
-    dequantized_block = quantized_blocks(:,:,k) .* jpeg_quant_matrix; 
-    reconstructed_blocks(:,:,k) = idct2(dequantized_block); 
+reconstructed_blocks_Y = zeros(size(blocks_Y));
 
-    % Shift the reconstructed block back by adding 128 to reverse the centering from Step 2
-    reconstructed_blocks(:,:,k) = reconstructed_blocks(:,:,k) + 128;
+for k = 1:num_blocks_Y
+
+    % Dequantise using the luminance quantisation matrix and perform inverse DCT
+    dequantised_block = quantized_blocks_Y(:,:,k) .* jpeg_quant_matrix_Y;
+    reconstructed_block = idct2(dequantised_block);
+
+    % Revert the centring by adding 128
+    reconstructed_blocks_Y(:,:,k) = reconstructed_block + 128;
 end
 
-% Reassemble the image from blocks
-reconstructed_image = zeros(rows, cols);
+% Reassemble the full Y channel from 8x8 blocks
+reconstructed_Y = zeros(rowsY, colsY);
 block_idx = 1;
 
-for i = 1:block_size:rows
-    for j = 1:block_size:cols
-        reconstructed_image(i:i+block_size-1, j:j+block_size-1) = reconstructed_blocks(:,:,block_idx);
+for i = 1:block_size:rowsY
+    for j = 1:block_size:colsY 
+        reconstructed_Y(i:i+block_size-1, j:j+block_size-1) = reconstructed_blocks_Y(:,:,block_idx);
         block_idx = block_idx + 1;
     end
 end
 
-% Convert original grayscale image to double for comparison
-gray_image_double = double(gray_image);
+% ------------------------------------
+% Reconstruct Chrominance (Cb) Channel
+% ------------------------------------
+reconstructed_blocks_Cb = zeros(size(blocks_Cb));
+for k = 1:num_blocks_C
+    % Dequantise using the chrominance quantisation matrix and perform inverse DCT
+    dequantised_block = quantized_blocks_Cb(:,:,k) .* jpeg_quant_matrix_chroma;
+    reconstructed_block = idct2(dequantised_block);
+
+    % Revert the centring by adding 128
+    reconstructed_blocks_Cb(:,:,k) = reconstructed_block + 128;
+end
+
+% Reassemble the full subsampled Cb channel
+reconstructed_Cb = zeros(rowsC, colsC);
+block_idx = 1;
+for i = 1:block_size:rowsC
+    for j = 1:block_size:colsC  % Step by block_size
+        reconstructed_Cb(i:i+block_size-1, j:j+block_size-1) = reconstructed_blocks_Cb(:,:,block_idx);
+        block_idx = block_idx + 1;
+    end
+end
+
+% ------------------------------------
+% Reconstruct Chrominance (Cr) Channel
+% ------------------------------------
+reconstructed_blocks_Cr = zeros(size(blocks_Cr));
+
+for k = 1:num_blocks_Cr
+    % Dequantise using the chrominance quantisation matrix and perform inverse DCT
+    dequantised_block = quantized_blocks_Cr(:,:,k) .* jpeg_quant_matrix_chroma;
+    reconstructed_block = idct2(dequantised_block);
+
+    % Revert the centring by adding 128
+    reconstructed_blocks_Cr(:,:,k) = reconstructed_block + 128;
+end
+
+% Reassemble the full subsampled Cr channel
+reconstructed_Cr = zeros(rowsCr, colsCr);
+block_idx = 1;
+for i = 1:block_size:rowsCr
+    for j = 1:block_size:colsCr  % Step by block_size
+        reconstructed_Cr(i:i+block_size-1, j:j+block_size-1) = reconstructed_blocks_Cr(:,:,block_idx);
+        block_idx = block_idx + 1;
+    end
+end
+
+% ---------------------------------
+% Upsample the Chrominance Channels
+% ---------------------------------
+
+% The Cb and Cr channels were subsampled (4:2:0), so upsampling them to the full resolution
+reconstructed_Cb_up = imresize(reconstructed_Cb, [rowsY, colsY], 'bilinear');
+reconstructed_Cr_up = imresize(reconstructed_Cr, [rowsY, colsY], 'bilinear');
+
+% -----------------------------------
+% Combine Channels and Convert to RGB
+% -----------------------------------
+
+% Combine the reconstructed Y, Cb, and Cr channels into a YCbCr image
+reconstructed_ycbcr = cat(3, uint8(reconstructed_Y), uint8(reconstructed_Cb_up), uint8(reconstructed_Cr_up));
+
+% Convert the YCbCr image back to RGB for display
+reconstructed_rgb = ycbcr2rgb(reconstructed_ycbcr);
+
+% -------------------------------
+% Calculate Quality Metrics
+% -------------------------------
+
+% Convert the original RGB image to double precision for comparison
+original_rgb_double = double(image);
+reconstructed_rgb_double = double(reconstructed_rgb);
 
 % Calculate Mean Squared Error (MSE) and Peak Signal-to-Noise Ratio (PSNR)
-mse = mean((gray_image_double - reconstructed_image).^2, 'all');
+mse = mean((original_rgb_double - reconstructed_rgb_double).^2, 'all');
 psnr_value = 10 * log10((255^2) / mse);
 
-% Clip values to [0, 255] and convert to uint8 for display
-reconstructed_image_uint8 = uint8(min(max(reconstructed_image, 0), 255));
+% Compute the absolute difference image and scale for visibility
+difference_image = abs(original_rgb_double - reconstructed_rgb_double);
+difference_image_uint8 = uint8(difference_image * (255 / max(difference_image(:))));
 
-% Compute the difference image (absolute error) for visualization
-difference_image = abs(gray_image_double - reconstructed_image);
+% -------------------------------------------------------------
+% Visualise the Original, Reconstructed, and Difference Images
+% -------------------------------------------------------------
 
-% Scale for visibility
-difference_image_uint8 = uint8(difference_image * (255 / max(difference_image(:)))); 
-
-% Show original, reconstructed, and difference images side by side
 figure('Name', 'Step 7: Image Reconstruction and Quality Analysis');
 
-% Subplot 1: Original grayscale image
 subplot(1, 3, 1);
-imshow(gray_image);
-title('Original Grayscale Image');
+imshow(image);
+title('Original RGB Image');
 
-% Subplot 2: Reconstructed image
 subplot(1, 3, 2);
-imshow(reconstructed_image_uint8);
-title('Reconstructed Image (Standard Quantization)');
+imshow(reconstructed_rgb);
+title('Reconstructed RGB Image');
 
-% Subplot 3: Difference image
 subplot(1, 3, 3);
 imshow(difference_image_uint8);
 title('Difference Image (Scaled Absolute Error)');
 
-% Add MSE and PSNR as text on the figure
-sgtitle(sprintf('Step 7: Image Reconstruction\nMSE: %.2f, PSNR: %.2f dB', mse, psnr_value));
+% Overall title with quality metrics
+sgtitle(sprintf('Image Reconstruction\nMSE: %.2f, PSNR: %.2f dB', mse, psnr_value));
 
-%% ==== STEP 7.5 Analysing Image Reconstruction at Regions-of Interest (ROIs) ==== %%
 
-% To be able to inspect the effects of JPEG compression, I have focussed in
-% on specifc 75x75 Regions-of-Interest (ROIs) on Lenna...
+%% ==== STEP 7.5 Analysing Image Reconstruction at Regions-of-Interest (ROIs) ==== %%
+% To inspect the effects of JPEG compression on the overall image, specific
+% 75x75 ROIs are extracted from the original RGB image, the reconstructed
+% RGB image, and the difference image.
 
-% Define ROI parameters
-ROI_dim = 75; 
+% Define ROI Dimensions
+ROI_dim = 75;  
 
+% Each row of ROI_coords defines the [row_start, col_start] for an ROI
 ROI_coords = [
-    240, 250;  % ROI1
-    200, 200;  % ROI2
-    280, 280   % ROI3
+    240, 350;  % ROI1
+    100, 200;  % ROI2
+    400, 380   % ROI3
 ];
-
 num_ROIs = size(ROI_coords, 1);
 
-% Initialise arrays to store ROI slices
-ROI_images = cell(num_ROIs, 1); % Original images
-ROI_reconstructed = cell(num_ROIs, 1); % Reconstructed images
-ROI_difference = cell(num_ROIs, 1); % Difference images
+% Initialise cell arrays to store ROI slices for each image type
+ROI_original = cell(num_ROIs, 1);      
+ROI_reconstructed = cell(num_ROIs, 1); 
+ROI_difference = cell(num_ROIs, 1);      
 
-% Extract ROIs
+% Extract ROIs from the images
 for i = 1:num_ROIs
     row_start = ROI_coords(i, 1);
     col_start = ROI_coords(i, 2);
-    row_end = row_start + (ROI_dim - 1);
-    col_end = col_start + (ROI_dim - 1);
+    row_end = row_start + ROI_dim - 1;
+    col_end = col_start + ROI_dim - 1;
     
-    % Extract slices for each image type
-    ROI_images{i} = gray_image(row_start:row_end, col_start:col_end);
-    ROI_reconstructed{i} = reconstructed_image_uint8(row_start:row_end, col_start:col_end);
-    ROI_difference{i} = difference_image_uint8(row_start:row_end, col_start:col_end);
+    ROI_original{i} = image(row_start:row_end, col_start:col_end, :);
+    ROI_reconstructed{i} = reconstructed_rgb(row_start:row_end, col_start:col_end, :);
+    ROI_difference{i} = difference_image_uint8(row_start:row_end, col_start:col_end, :);
 end
 
-% Display ROIs in a 3x3 grid
+% Display the ROIs in a 3x3 grid: one row per ROI and three columns:
+
+% Original, Reconstructed, and Difference.
 figure('Name', 'Step 7.5: ROI Analysis');
 
-% Row 1: ROI1 (Original, Reconstructed, Difference)
-subplot(3, 3, 1);
-imshow(ROI_images{1});
-title('ROI1: Original');
+for i = 1:num_ROIs
+    subplot(num_ROIs, 3, (i-1)*3+1);
+    imshow(ROI_original{i});
+    title(sprintf('ROI%d: Original', i));
+    
+    subplot(num_ROIs, 3, (i-1)*3+2);
+    imshow(ROI_reconstructed{i});
+    title(sprintf('ROI%d: Reconstructed', i));
+    
+    subplot(num_ROIs, 3, (i-1)*3+3);
+    imshow(ROI_difference{i});
+    title(sprintf('ROI%d: Difference', i));
+end
 
-subplot(3, 3, 2);
-imshow(ROI_reconstructed{1});
-title('ROI1: Reconstructed');
-
-subplot(3, 3, 3);
-imshow(ROI_difference{1});
-title('ROI1: Difference');
-
-% Row 2: ROI2 (Original, Reconstructed, Difference)
-subplot(3, 3, 4);
-imshow(ROI_images{2});
-title('ROI2: Original');
-
-subplot(3, 3, 5);
-imshow(ROI_reconstructed{2});
-title('ROI2: Reconstructed');
-
-subplot(3, 3, 6);
-imshow(ROI_difference{2});
-title('ROI2: Difference');
-
-% Row 3: ROI3 (Original, Reconstructed, Difference)
-subplot(3, 3, 7);
-imshow(ROI_images{3});
-title('ROI3: Original');
-
-subplot(3, 3, 8);
-imshow(ROI_reconstructed{3});
-title('ROI3: Reconstructed');
-
-subplot(3, 3, 9);
-imshow(ROI_difference{3});
-title('ROI3: Difference');
-
-% Adjust layout for better spacing
 sgtitle('Step 7.5: ROI Analysis (Original, Reconstructed, Difference)');
+
+%% ==== STEP 8: Compare Original vs. Compressed Y and Cr Channels ==== %%
+% This stage compares the original luminance (Y) and chrominance (Cr) channels
+% with their compressed (reconstructed) counterparts. The original Cr channel 
+% is displayed in its pseudo‑colour form (Cr_img), and the compressed Cr is derived
+% from the reconstructed YCbCr image and converted to a similar pseudo‑colour image.
+% The results are presented in a 2x2 grid.
+
+% --- Extract Original Channels ---
+original_Y = Y;            % Original luminance (grayscale)
+original_Cr_img = Cr_img;  % Original pseudo‑colour Cr channel (from Stage 1)
+
+% --- Compressed Luminance (Y) ---
+% 'reconstructed_Y' was reassembled in Stage 7.
+compressed_Y = uint8(reconstructed_Y);
+
+% --- Compressed Chrominance (Cr) ---
+% Extract the Cr channel from the reconstructed YCbCr image (Stage 7)
+compressed_Cr_channel = uint8(reconstructed_ycbcr(:,:,3));
+
+% Use the same neutral value as in Stage 1 to generate a pseudo‑colour representation
+neutral = uint8(128 * ones(size(original_Y)));
+compressed_Cr_img = ycbcr2rgb(cat(3, neutral, neutral, compressed_Cr_channel));
+
+% --- Display the Results ---
+figure('Name', 'Step 8: Comparison of Original vs. Compressed Y and Cr');
+subplot(2,2,1);
+imshow(original_Y);
+title('Original Luminance (Y)');
+
+subplot(2,2,2);
+imshow(compressed_Y);
+title('Compressed Luminance (Y)');
+
+subplot(2,2,3);
+imshow(original_Cr_img);
+title('Original Chrominance (Cr)');
+
+subplot(2,2,4);
+imshow(compressed_Cr_img);
+title('Compressed Chrominance (Cr)');
+
+sgtitle('Stage 8: Comparison of Original vs. Compressed Y and Cr Channels');
